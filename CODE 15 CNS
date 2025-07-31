@@ -1,0 +1,98 @@
+#include <stdio.h>
+#include <string.h>
+#include <ctype.h>
+#include <stdlib.h>
+
+#define MAX_LEN 1024
+
+// English letter frequencies in percent (A-Z)
+float english_freq[26] = {
+    8.12, 1.49, 2.71, 4.32, 12.0, 2.30, 2.03,
+    5.92, 7.31, 0.10, 0.69, 3.98, 2.61, 6.95,
+    7.68, 1.82, 0.11, 6.02, 6.28, 9.10, 2.88,
+    1.11, 2.09, 0.17, 2.11, 0.07
+};
+
+// Calculate score based on frequency similarity
+float calculate_score(char *text) {
+    int count[26] = {0};
+    int total = 0;
+    float score = 0.0;
+
+    for (int i = 0; text[i]; i++) {
+        if (isupper(text[i])) {
+            count[text[i] - 'A']++;
+            total++;
+        }
+    }
+
+    for (int i = 0; i < 26; i++) {
+        float observed = ((float)count[i] / total) * 100.0;
+        float diff = observed - english_freq[i];
+        score += diff * diff;  // lower is better
+    }
+
+    return score;
+}
+
+// Decrypt Caesar cipher with given key
+void decrypt_caesar(char *cipher, int key, char *output) {
+    for (int i = 0; cipher[i]; i++) {
+        if (isupper(cipher[i])) {
+            output[i] = ((cipher[i] - 'A' - key + 26) % 26) + 'A';
+        } else {
+            output[i] = cipher[i];
+        }
+    }
+    output[strlen(cipher)] = '\0';
+}
+
+// Structure to store plaintext and score
+typedef struct {
+    int key;
+    float score;
+    char plaintext[MAX_LEN];
+} Result;
+
+int compare_scores(const void *a, const void *b) {
+    Result *r1 = (Result *)a;
+    Result *r2 = (Result *)b;
+    return (r1->score > r2->score) - (r1->score < r2->score);  // ascending
+}
+
+int main() {
+    char cipher[MAX_LEN];
+    int top_n;
+
+    printf("Enter ciphertext (uppercase letters only):\n");
+    fgets(cipher, MAX_LEN, stdin);
+    cipher[strcspn(cipher, "\n")] = '\0';
+
+    // Convert to uppercase
+    for (int i = 0; cipher[i]; i++) {
+        cipher[i] = toupper(cipher[i]);
+    }
+
+    printf("How many top results do you want to see? ");
+    scanf("%d", &top_n);
+
+    Result results[26];
+
+    // Try all possible Caesar keys
+    for (int key = 0; key < 26; key++) {
+        decrypt_caesar(cipher, key, results[key].plaintext);
+        results[key].key = key;
+        results[key].score = calculate_score(results[key].plaintext);
+    }
+
+    // Sort results by frequency score
+    qsort(results, 26, sizeof(Result), compare_scores);
+
+    printf("\nTop %d possible plaintexts:\n", top_n);
+    for (int i = 0; i < top_n && i < 26; i++) {
+        printf("Key = %2d | Score = %6.2f | Plaintext: %s\n",
+               results[i].key, results[i].score, results[i].plaintext);
+    }
+
+    return 0;
+}
