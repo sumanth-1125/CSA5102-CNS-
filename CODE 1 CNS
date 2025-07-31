@@ -1,0 +1,52 @@
+#include <stdio.h>
+#include <string.h>
+#include <ctype.h>
+
+void caesar_encrypt(char *text, int key);
+
+
+int main() {
+    char text[200]; // Buffer to store the input message
+    int key;
+    printf("Enter a message to encrypt: ");
+   
+    if (fgets(text, sizeof(text), stdin) == NULL) {
+        printf("Error reading input.\n");
+        return 1;
+    }
+
+   
+    text[strcspn(text, "\n")] = '\0';
+
+    
+    printf("Enter the key (a number from 1 to 25): ");
+    if (scanf("%d", &key) != 1) {
+        printf("Invalid input. Please enter a number.\n");
+        return 1;
+    }
+
+    if (key < 1 || key > 25) {
+        printf("Error: The key must be between 1 and 25.\n");
+        return 1;
+    }
+
+    caesar_encrypt(text, key);
+
+    printf("Encrypted message: %s\n", text);
+
+    return 0;
+}
+
+void caesar_encrypt(char *text, int key) {
+    char ch;
+    int i;
+
+    for (i = 0; text[i] != '\0'; ++i) {
+        ch = text[i];
+
+        if (isalpha(ch)) {
+            char base = isupper(ch) ? 'A' : 'a';
+            text[i] = ch;
+        }
+    }
+}
