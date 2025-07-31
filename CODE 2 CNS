@@ -1,0 +1,49 @@
+#include <stdio.h>
+#include <string.h>
+#include <ctype.h>
+void monoalphabetic_encrypt
+
+const char *key = "QWERTYUIOPASDFGHJKLZXCVBNM";(char *text, const char *key)
+int main() {
+    
+    
+    
+    const char *alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+
+    char text[200]; // Buffer to store the input message
+
+    
+    printf("Monoalphabetic Cipher Key:\n");
+    printf("Plaintext:  %s\n", alphabet);
+    printf("Ciphertext: %s\n\n", key);
+
+    printf("Enter a message to encrypt: ");
+    if (fgets(text, sizeof(text), stdin) == NULL) {
+        printf("Error reading input.\n");
+        return 1;
+    }
+
+    printf("Encrypted message: %s\n", text);
+
+    return 0;
+}
+void monoalphabetic_encrypt(char *text, const char *key) {
+    char ch;
+    int i, index;
+
+    for (i = 0; text[i] != '\0'; ++i) {
+        ch = text[i];
+        if (isalpha(ch)) {
+            int is_lower = islower(ch);
+           
+            index = toupper(ch) - 'A';
+
+            char substituted_char = key[index];
+            if (is_lower) {
+                text[i] = tolower(substituted_char);
+            } else {
+                text[i] = substituted_char;
+            }
+        }
+    }
+}
