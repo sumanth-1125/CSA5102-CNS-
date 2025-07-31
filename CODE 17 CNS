@@ -1,0 +1,131 @@
+#include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
+
+// Define permutation tables
+int PC1[56] = {
+    57,49,41,33,25,17,9,
+    1,58,50,42,34,26,18,
+    10,2,59,51,43,35,27,
+    19,11,3,60,52,44,36,
+    63,55,47,39,31,23,15,
+    7,62,54,46,38,30,22,
+    14,6,61,53,45,37,29,
+    21,13,5,28,20,12,4
+};
+
+int PC2[48] = {
+    14,17,11,24,1,5,3,28,
+    15,6,21,10,23,19,12,4,
+    26,8,16,7,27,20,13,2,
+    41,52,31,37,47,55,30,40,
+    51,45,33,48,44,49,39,56,
+    34,53,46,42,50,36,29,32
+};
+
+int shift_schedule[16] = {
+    1, 1, 2, 2,
+    2, 2, 2, 2,
+    1, 2, 2, 2,
+    2, 2, 2, 1
+};
+
+// Left shift function
+void left_shift(char *half, int shifts) {
+    char temp[28];
+    strncpy(temp, half, shifts);
+    memmove(half, half + shifts, 28 - shifts);
+    memcpy(half + (28 - shifts), temp, shifts);
+}
+
+// Key generation (reverse key schedule for decryption)
+void generate_keys(char *key_64bit, char keys[16][49]) {
+    char key_56bit[57] = {0};
+    char C[29], D[29];
+
+    // PC1 permutation
+    for (int i = 0; i < 56; i++) {
+        key_56bit[i] = key_64bit[PC1[i] - 1];
+    }
+
+    strncpy(C, key_56bit, 28);
+    C[28] = '\0';
+    strncpy(D, key_56bit + 28, 28);
+    D[28] = '\0';
+
+    char combined[57];
+
+    // Generate 16 keys (same as encryption)
+    for (int round = 0; round < 16; round++) {
+        left_shift(C, shift_schedule[round]);
+        left_shift(D, shift_schedule[round]);
+
+        strncpy(combined, C, 28);
+        strncpy(combined + 28, D, 28);
+        combined[56] = '\0';
+
+        for (int i = 0; i < 48; i++) {
+            keys[round][i] = combined[PC2[i] - 1];
+        }
+        keys[round][48] = '\0';
+    }
+
+    // Reverse the order for decryption
+    for (int i = 0; i < 8; i++) {
+        char temp[49];
+        strcpy(temp, keys[i]);
+        strcpy(keys[i], keys[15 - i]);
+        strcpy(keys[15 - i], temp);
+    }
+}
+
+// Stub for DES round function
+void des_round_function(const char *data, const char *key, char *output) {
+    // You can fill in a real DES F-function here (expansion, S-boxes, etc.)
+    strncpy(output, data, 64);
+}
+
+// Decryption function (simplified structure)
+void des_decrypt(char *ciphertext_64, char *key_64) {
+    char keys[16][49];
+    generate_keys(key_64, keys);
+
+    char block[65];
+    strncpy(block, ciphertext_64, 64);
+    block[64] = '\0';
+
+    for (int i = 0; i < 16; i++) {
+        char temp[65];
+        des_round_function(block, keys[i], temp);
+        strcpy(block, temp);
+    }
+
+    printf("Decrypted block (binary): %s\n", block);
+}
+
+// Helper to convert string to binary
+void string_to_binary(const char *input, char *output) {
+    while (*input) {
+        for (int i = 7; i >= 0; i--) {
+            *output++ = ((*input >> i) & 1) + '0';
+        }
+        input++;
+    }
+    *output = '\0';
+}
+
+int main() {
+    char plaintext[9] = "ABCDEFGH";
+    char key[9] = "12345678";
+    char binary_key[65], binary_ct[65];
+
+    string_to_binary(key, binary_key);
+    string_to_binary(plaintext, binary_ct);
+
+    printf("Key (binary): %s\n", binary_key);
+    printf("Ciphertext block (binary): %s\n", binary_ct);
+
+    des_decrypt(binary_ct, binary_key);
+
+    return 0;
+}
