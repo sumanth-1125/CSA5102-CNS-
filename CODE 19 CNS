@@ -1,0 +1,65 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <openssl/evp.h>
+#include <openssl/rand.h>
+
+#define BLOCK_SIZE 8  // 3DES block size
+
+void handleErrors() {
+    fprintf(stderr, "Error occurred.\n");
+    exit(EXIT_FAILURE);
+}
+
+void print_hex(const char *label, const unsigned char *data, int len) {
+    printf("%s: ", label);
+    for (int i = 0; i < len; i++)
+        printf("%02X", data[i]);
+    printf("\n");
+}
+
+int encrypt_cbc_3des(const unsigned char *plaintext, int plaintext_len,
+                     const unsigned char *key,
+                     const unsigned char *iv,
+                     unsigned char *ciphertext) {
+    
+    EVP_CIPHER_CTX *ctx;
+    int len, ciphertext_len;
+
+    ctx = EVP_CIPHER_CTX_new();
+    if (!ctx) handleErrors();
+
+    if (!EVP_EncryptInit_ex(ctx, EVP_des_ede3_cbc(), NULL, key, iv))
+        handleErrors();
+
+    if (!EVP_EncryptUpdate(ctx, ciphertext, &len, plaintext, plaintext_len))
+        handleErrors();
+    ciphertext_len = len;
+
+    if (!EVP_EncryptFinal_ex(ctx, ciphertext + len, &len))
+        handleErrors();
+    ciphertext_len += len;
+
+    EVP_CIPHER_CTX_free(ctx);
+    return ciphertext_len;
+}
+
+int main() {
+    unsigned char key[24];   // 3DES = 24 bytes key (3x8)
+    unsigned char iv[BLOCK_SIZE]; // 8 bytes IV
+    unsigned char plaintext[] = "This is a secret message. Encrypt it!";
+    unsigned char ciphertext[128];
+    
+    // Generate random key and IV
+    RAND_bytes(key, sizeof(key));
+    RAND_bytes(iv, sizeof(iv));
+
+    print_hex("Plaintext", plaintext, strlen((char*)plaintext));
+    print_hex("Key", key, sizeof(key));
+    print_hex("IV", iv, sizeof(iv));
+
+    int ciphertext_len = encrypt_cbc_3des(plaintext, strlen((char*)plaintext), key, iv, ciphertext);
+    print_hex("Ciphertext (CBC 3DES)", ciphertext, ciphertext_len);
+
+    return 0;
+}
