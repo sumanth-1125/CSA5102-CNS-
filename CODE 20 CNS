@@ -1,0 +1,90 @@
+#include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
+#include <openssl/evp.h>
+#include <openssl/rand.h>
+
+#define BLOCK_SIZE 16 // AES block size
+
+void handleErrors() {
+    fprintf(stderr, "OpenSSL error.\n");
+    exit(1);
+}
+
+void print_hex(const char *label, unsigned char *data, int len) {
+    printf("%s: ", label);
+    for (int i = 0; i < len; i++)
+        printf("%02X", data[i]);
+    printf("\n");
+}
+
+int encrypt(unsigned char *plaintext, int plaintext_len, unsigned char *key, unsigned char *iv, 
+            unsigned char *ciphertext, const EVP_CIPHER *cipher_type) {
+    EVP_CIPHER_CTX *ctx;
+    int len, ciphertext_len;
+    
+    ctx = EVP_CIPHER_CTX_new();
+    EVP_EncryptInit_ex(ctx, cipher_type, NULL, key, iv);
+    
+    EVP_EncryptUpdate(ctx, ciphertext, &len, plaintext, plaintext_len);
+    ciphertext_len = len;
+
+    EVP_EncryptFinal_ex(ctx, ciphertext + len, &len);
+    ciphertext_len += len;
+
+    EVP_CIPHER_CTX_free(ctx);
+    return ciphertext_len;
+}
+
+int decrypt(unsigned char *ciphertext, int ciphertext_len, unsigned char *key, unsigned char *iv, 
+            unsigned char *plaintext, const EVP_CIPHER *cipher_type) {
+    EVP_CIPHER_CTX *ctx;
+    int len, plaintext_len;
+    
+    ctx = EVP_CIPHER_CTX_new();
+    EVP_DecryptInit_ex(ctx, cipher_type, NULL, key, iv);
+    
+    EVP_DecryptUpdate(ctx, plaintext, &len, ciphertext, ciphertext_len);
+    plaintext_len = len;
+
+    EVP_DecryptFinal_ex(ctx, plaintext + len, &len);
+    plaintext_len += len;
+
+    EVP_CIPHER_CTX_free(ctx);
+    return plaintext_len;
+}
+
+void flip_bit(unsigned char *block, int index) {
+    block[index] ^= 0x01; // Flip 1 bit
+}
+
+int main() {
+    unsigned char key[32], iv[BLOCK_SIZE];
+    unsigned char plaintext[64] = "This is a top secret message split into blocks.";
+    unsigned char ciphertext_ecb[128], decrypted_ecb[128];
+    unsigned char ciphertext_cbc[128], decrypted_cbc[128];
+
+    RAND_bytes(key, sizeof(key));
+    RAND_bytes(iv, sizeof(iv));
+
+    printf("\nOriginal Plaintext:\n%s\n", plaintext);
+
+    int len_ecb = encrypt(plaintext, strlen((char *)plaintext), key, NULL, ciphertext_ecb, EVP_aes_256_ecb());
+    int len_cbc = encrypt(plaintext, strlen((char *)plaintext), key, iv, ciphertext_cbc, EVP_aes_256_cbc());
+
+    // Introduce bit error in first ciphertext block
+    flip_bit(ciphertext_ecb, 0); // ECB error
+    flip_bit(ciphertext_cbc, 0); // CBC error
+
+    decrypt(ciphertext_ecb, len_ecb, key, NULL, decrypted_ecb, EVP_aes_256_ecb());
+    decrypt(ciphertext_cbc, len_cbc, key, iv, decrypted_cbc, EVP_aes_256_cbc());
+
+    decrypted_ecb[len_ecb] = '\0';
+    decrypted_cbc[len_cbc] = '\0';
+
+    printf("\n--- After Bit Flip in First Cipher Block ---\n");
+    printf("Decrypted ECB:\n%s\n", decrypted_ecb);
+    printf("Decrypted CBC:\n%s\n", decrypted_cbc);
+
+    return 0;
+}
