@@ -1,0 +1,94 @@
+#include <stdio.h>
+#include <string.h>
+#include <ctype.h>
+
+#define SIZE 5
+
+// Predefined matrix as per question
+char matrix[SIZE][SIZE] = {
+    {'M','F','H','I','K'},
+    {'U','N','O','P','Q'},
+    {'Z','V','W','X','Y'},
+    {'E','L','A','R','G'},
+    {'D','S','T','B','C'}
+};
+
+// Convert char to uppercase and replace J with I
+char normalizeChar(char ch) {
+    ch = toupper(ch);
+    return (ch == 'J') ? 'I' : ch;
+}
+
+// Find position of a character in matrix
+void findPosition(char ch, int *row, int *col) {
+    ch = normalizeChar(ch);
+    for (int i = 0; i < SIZE; i++)
+        for (int j = 0; j < SIZE; j++)
+            if (matrix[i][j] == ch) {
+                *row = i;
+                *col = j;
+                return;
+            }
+}
+
+// Encrypt a pair using Playfair rules
+void encryptPair(char a, char b, char *out1, char *out2) {
+    int r1, c1, r2, c2;
+    findPosition(a, &r1, &c1);
+    findPosition(b, &r2, &c2);
+
+    if (r1 == r2) { // Same row
+        *out1 = matrix[r1][(c1 + 1) % SIZE];
+        *out2 = matrix[r2][(c2 + 1) % SIZE];
+    } else if (c1 == c2) { // Same column
+        *out1 = matrix[(r1 + 1) % SIZE][c1];
+        *out2 = matrix[(r2 + 1) % SIZE][c2];
+    } else { // Rectangle
+        *out1 = matrix[r1][c2];
+        *out2 = matrix[r2][c1];
+    }
+}
+
+// Prepare the plaintext into digraphs
+void prepareText(char *input, char *output) {
+    int len = strlen(input);
+    int j = 0;
+
+    for (int i = 0; i < len; i++) {
+        if (!isalpha(input[i])) continue;
+
+        char ch1 = normalizeChar(input[i]);
+        if (j > 0 && output[j - 1] == ch1) {
+            output[j++] = 'X'; // pad repeated letter
+        }
+        output[j++] = ch1;
+    }
+
+    if (j % 2 != 0) output[j++] = 'X'; // pad if odd
+    output[j] = '\0';
+}
+
+// Encrypt the full message
+void encryptMessage(char *plaintext, char *ciphertext) {
+    char prepared[512];
+    prepareText(plaintext, prepared);
+
+    int len = strlen(prepared);
+    int k = 0;
+    for (int i = 0; i < len; i += 2) {
+        encryptPair(prepared[i], prepared[i + 1], &ciphertext[k], &ciphertext[k + 1]);
+        k += 2;
+    }
+    ciphertext[k] = '\0';
+}
+
+int main() {
+    char plaintext[] = "Must see you over Cadogan West. Coming at once.";
+    char ciphertext[512];
+
+    encryptMessage(plaintext, ciphertext);
+
+    printf("Encrypted Message:\n%s\n", ciphertext);
+
+    return 0;
+}
