@@ -1,0 +1,67 @@
+#include <stdio.h>
+#include <string.h>
+#include <ctype.h>
+
+#define MAX_LEN 100
+
+// Converts lowercase to uppercase and removes spaces
+void preprocess(char *str) {
+    int j = 0;
+    for (int i = 0; str[i]; i++) {
+        if (isalpha(str[i])) {
+            str[j++] = toupper(str[i]);
+        }
+    }
+    str[j] = '\0';
+}
+
+// Encrypt with one-time pad
+void encrypt(char *plaintext, int *key, char *ciphertext) {
+    for (int i = 0; plaintext[i]; i++) {
+        int p = plaintext[i] - 'A';
+        int c = (p + key[i]) % 26;
+        ciphertext[i] = c + 'A';
+    }
+    ciphertext[strlen(plaintext)] = '\0';
+}
+
+// Find key from ciphertext and new plaintext
+void find_key(char *ciphertext, char *new_plaintext, int *key_out) {
+    for (int i = 0; ciphertext[i]; i++) {
+        int c = ciphertext[i] - 'A';
+        int p = new_plaintext[i] - 'A';
+        key_out[i] = (c - p + 26) % 26;
+    }
+}
+
+void print_key(int *key, int len) {
+    printf("Key Stream: ");
+    for (int i = 0; i < len; i++) {
+        printf("%d ", key[i]);
+    }
+    printf("\n");
+}
+
+int main() {
+    char plaintext1[MAX_LEN] = "send more money";
+    int key1[] = {9, 0, 1, 7, 23, 15, 21, 14, 11, 11, 2, 8, 9}; // length = 13
+    char ciphertext[MAX_LEN];
+    int len = sizeof(key1) / sizeof(key1[0]);
+
+    preprocess(plaintext1);
+
+    // Encrypt first message
+    encrypt(plaintext1, key1, ciphertext);
+
+    printf("Encrypted Ciphertext: %s\n", ciphertext);
+
+    // Decrypt with different plaintext: "cash not needed"
+    char plaintext2[MAX_LEN] = "cash not needed";
+    preprocess(plaintext2);
+    int new_key[MAX_LEN];
+
+    find_key(ciphertext, plaintext2, new_key);
+    print_key(new_key, len);
+
+    return 0;
+}
