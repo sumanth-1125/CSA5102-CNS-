@@ -1,0 +1,96 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <ctype.h>
+
+#define MAX_TEXT 2048
+#define MAX_RESULTS 100
+
+// English letter frequencies sorted from most to least common
+char english_freq_order[] = "ETAOINSHRDLCUMWFGYPBVKJXQZ";
+
+// Structure to hold a decryption attempt
+typedef struct {
+    char plaintext[MAX_TEXT];
+    float score;
+} DecryptionResult;
+
+// Function to count frequency of each letter in ciphertext
+void count_frequency(const char *text, int freq[26]) {
+    memset(freq, 0, 26 * sizeof(int));
+    for (int i = 0; text[i]; i++) {
+        if (isupper(text[i])) {
+            freq[text[i] - 'A']++;
+        }
+    }
+}
+
+// Score based on how close letter positions match English frequency
+float score_decryption(const char *text) {
+    int freq[26] = {0}, total = 0;
+    float score = 0;
+    for (int i = 0; text[i]; i++) {
+        if (isupper(text[i])) {
+            freq[text[i] - 'A']++;
+            total++;
+        }
+    }
+    for (int i = 0; i < 26; i++) {
+        float percent = (float)freq[i] / total * 100.0;
+        // Add penalty based on how far off common frequency
+        score += percent * (26 - (strchr(english_freq_order, i + 'A') - english_freq_order));
+    }
+    return -score; // More negative = worse
+}
+
+// Map ciphertext using mapping array
+void apply_mapping(const char *cipher, const char *map, char *output) {
+    for (int i = 0; cipher[i]; i++) {
+        if (isupper(cipher[i])) {
+            output[i] = map[cipher[i] - 'A'];
+        } else {
+            output[i] = cipher[i];
+        }
+    }
+    output[strlen(cipher)] = '\0';
+}
+
+// Compare function for sorting results
+int compare_results(const void *a, const void *b) {
+    float scoreA = ((DecryptionResult *)a)->score;
+    float scoreB = ((DecryptionResult *)b)->score;
+    return (scoreB > scoreA) - (scoreB < scoreA);
+}
+
+int main() {
+    char ciphertext[MAX_TEXT];
+    int top_n;
+
+    printf("Enter UPPERCASE ciphertext:\n");
+    fgets(ciphertext, MAX_TEXT, stdin);
+    ciphertext[strcspn(ciphertext, "\n")] = '\0';
+
+    printf("How many top results to show? ");
+    scanf("%d", &top_n);
+
+    // Count ciphertext letter frequency
+    int freq[26];
+    count_frequency(ciphertext, freq);
+
+    // Map most frequent cipher letters to English letter frequency order
+    int idx[26];
+    for (int i = 0; i < 26; i++) idx[i] = i;
+
+    // Sort indices by descending frequency
+    for (int i = 0; i < 25; i++) {
+        for (int j = i + 1; j < 26; j++) {
+            if (freq[idx[j]] > freq[idx[i]]) {
+                int temp = idx[i];
+                idx[i] = idx[j];
+                idx[j] = temp;
+            }
+        }
+    }
+
+    // Construct mapping
+    char mapping
