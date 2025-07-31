@@ -1,0 +1,112 @@
+#include <stdio.h>
+#include <string.h>
+
+#define NUM_ROUNDS 16
+
+// PC-1: Permuted Choice 1 (64-bit input to 56-bit key)
+int PC1[56] = {
+    57,49,41,33,25,17,9,
+    1,58,50,42,34,26,18,
+    10,2,59,51,43,35,27,
+    19,11,3,60,52,44,36,
+    63,55,47,39,31,23,15,
+    7,62,54,46,38,30,22,
+    14,6,61,53,45,37,29,
+    21,13,5,28,20,12,4
+};
+
+// PC-2: Permuted Choice 2 (56-bit input to 48-bit subkey)
+int PC2[48] = {
+    14,17,11,24,1,5,3,28,
+    15,6,21,10,23,19,12,4,
+    26,8,16,7,27,20,13,2,
+    41,52,31,37,47,55,30,40,
+    51,45,33,48,44,49,39,56,
+    34,53,46,42,50,36,29,32
+};
+
+// Shift schedule for each round
+int shift_schedule[NUM_ROUNDS] = {
+    1, 1, 2, 2,
+    2, 2, 2, 2,
+    1, 2, 2, 2,
+    2, 2, 2, 1
+};
+
+// Convert ASCII to binary string (8 bits per char)
+void string_to_binary(const char* input, char* output) {
+    while (*input) {
+        for (int i = 7; i >= 0; i--) {
+            *output++ = ((*input >> i) & 1) + '0';
+        }
+        input++;
+    }
+    *output = '\0';
+}
+
+// Left rotate by 'n' bits
+void left_shift(char* bits, int n) {
+    char temp[2*n];
+    strncpy(temp, bits, n);
+    memmove(bits, bits + n, 28 - n);
+    strncpy(bits + (28 - n), temp, n);
+}
+
+// Main function to generate keys and verify bit origin
+void generate_keys(const char* key64) {
+    char key56[57] = {0};
+    char C[29], D[29];
+    char CD[57];
+    char subkeys[NUM_ROUNDS][49];
+
+    // Step 1: Apply PC-1
+    for (int i = 0; i < 56; i++) {
+        key56[i] = key64[PC1[i] - 1];
+    }
+
+    strncpy(C, key56, 28); C[28] = '\0';
+    strncpy(D, key56 + 28, 28); D[28] = '\0';
+
+    // Step 2: Generate keys for each round
+    for (int r = 0; r < NUM_ROUNDS; r++) {
+        left_shift(C, shift_schedule[r]);
+        left_shift(D, shift_schedule[r]);
+
+        strncpy(CD, C, 28);
+        strncpy(CD + 28, D, 28);
+        CD[56] = '\0';
+
+        // Step 3: Apply PC-2
+        for (int i = 0; i < 48; i++) {
+            subkeys[r][i] = CD[PC2[i] - 1];
+        }
+        subkeys[r][48] = '\0';
+
+        // Step 4: Print key with origin check
+        printf("Round %2d Subkey: ", r+1);
+        for (int i = 0; i < 48; i++) {
+            printf("%c", subkeys[r][i]);
+        }
+        printf(" | From C: ");
+        for (int i = 0; i < 48; i++) {
+            int bit_index = PC2[i] - 1;
+            if (bit_index < 28)
+                printf("C");
+            else
+                printf("D");
+        }
+        printf("\n");
+    }
+}
+
+int main() {
+    const char* key_ascii = "ABCDEFGH"; // 8-char (64-bit) key
+    char key_binary[65];
+    string_to_binary(key_ascii, key_binary);
+
+    printf("Original Key (ASCII): %s\n", key_ascii);
+    printf("Key in binary: %s\n", key_binary);
+
+    generate_keys(key_binary);
+    return 0;
+}
